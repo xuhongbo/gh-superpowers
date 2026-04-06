@@ -54,19 +54,19 @@ import { detectPlanVersionDrift, inferTaskStates } from 'file://${PLUGIN_ROOT}/p
 (async () => {
   // 测试 plan 版本漂移
   const drift = detectPlanVersionDrift(
-    [{ id: 'T1', title: '旧' }, { id: 'T2', title: '被删' }],
-    [{ id: 'T1', title: '旧' }, { id: 'T3', title: '新增' }]
+    [{ taskId: 'T1', title: '旧' }, { taskId: 'T2', title: '被删' }],
+    [{ taskId: 'T1', title: '旧' }, { taskId: 'T3', title: '新增' }]
   );
   if (drift.length !== 2) { console.error('drift count', drift.length); process.exit(1); }
 
   // 测试状态推导
   const inference = inferTaskStates({
     tasks: [
-      { id: 'T1', title: '验收' },
-      { id: 'T2', title: '阻塞' },
-      { id: 'T3', title: '实现' },
-      { id: 'T4', title: '丢弃' },
-      { id: 'T5', title: '待办' },
+      { taskId: 'T1', title: '验收' },
+      { taskId: 'T2', title: '阻塞' },
+      { taskId: 'T3', title: '实现' },
+      { taskId: 'T4', title: '丢弃' },
+      { taskId: 'T5', title: '待办' },
     ],
     facts: [
       { kind: 'implementation', taskId: 'T1', description: 'PR #1' },
@@ -80,7 +80,7 @@ import { detectPlanVersionDrift, inferTaskStates } from 'file://${PLUGIN_ROOT}/p
     ],
     requiredChecks: ['build', 'test'],
   });
-  const states = Object.fromEntries(inference.tasks.map(t => [t.id, t.state]));
+  const states = Object.fromEntries(inference.tasks.map(t => [t.taskId, t.state]));
   if (states.T1 !== 'accepted') { console.error('T1', states); process.exit(1); }
   if (states.T2 !== 'blocked') { console.error('T2', states); process.exit(1); }
   if (states.T3 !== 'implemented') { console.error('T3', states); process.exit(1); }
