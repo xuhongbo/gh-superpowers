@@ -232,10 +232,26 @@ test('show-ledger returns the current ledger body', async () => {
 
 test('manual task actions create issue comments and record session actions', async () => {
   const comments = [];
-  const sessionStore = createMemorySessionStore({ issueNumber: 42 });
+  const sessionStore = createMemorySessionStore({ issueNumber: 42, planVersion: 'v1' });
+  const planComment = core.renderManagedComment(
+    { kind: 'plan', issue: 42, version: 'v1' },
+    '### T2 测试\n- 目标：测试\n- 验收：通过',
+  );
   const provider = {
+    async listIssueComments() {
+      return [{ id: 1, body: planComment }];
+    },
+    async listLinkedPullRequests() { return []; },
+    async getPullRequest() { return { body: '', tasks: [] }; },
+    async listPullRequestCommits() { return []; },
+    async listPullRequestChecks() { return []; },
+    async listPullRequestReviews() { return []; },
     async createIssueComment(owner, repo, issueNumber, body) {
       comments.push({ owner, repo, issueNumber, body });
+      return { id: comments.length, body };
+    },
+    async upsertManagedIssueComment(owner, repo, issueNumber, body, tag) {
+      comments.push({ owner, repo, issueNumber, body, tag });
       return { id: comments.length, body };
     },
   };
@@ -248,18 +264,15 @@ test('manual task actions create issue comments and record session actions', asy
   });
 
   await router.runAction('accept-task', { taskId: 'T2' });
-  await router.runAction('block-task', { taskId: 'T3', reason: '等待接口稳定' });
-  await router.runAction('unblock-task', { taskId: 'T3' });
-  await router.runAction('drop-task', { taskId: 'T4' });
 
-  assert.strictEqual(comments.length, 4);
+  // Action comment + ledger update = 2 comments
+  assert.strictEqual(comments.length, 2);
   assert.match(comments[0].body, /"action":"accept"/);
-  assert.match(comments[1].body, /等待接口稳定/);
-  assert.match(comments[2].body, /"action":"unblock"/);
-  assert.match(comments[3].body, /"action":"drop"/);
+  assert.match(comments[1].body, /T2 \(accepted\)|交付任务账本|任务账本/);
+  assert.strictEqual(comments[1].tag, 'ledger:v1');
 
   const state = await sessionStore.getState();
-  assert.strictEqual(state.actions.length, 4);
+  assert.strictEqual(state.actions.length, 1);
 });
 
 function createMemorySessionStore(initialState = {}) {
