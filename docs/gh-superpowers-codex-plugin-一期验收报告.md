@@ -98,12 +98,12 @@ todo → in_progress → implemented → verified → accepted
 
 | 文件 | 测试数 | 覆盖范围 |
 |------|--------|----------|
-| `core.test.js` | 16 | Plan 解析、托管评论、任务绑定、状态推导、账本生成、计划版本漂移检测、边界情况 |
-| `codex-actions.test.js` | 14 | 配置加载、会话存储、自然语言路由、publish-plan、sync-ledger、show-ledger、人工动作、参数校验 |
-| `github-provider.test.js` | 9 | MCP/gh 通道选择、评论 CRUD、PR checks、PR reviews、MCP 关联 PR 搜索、边界情况 |
-| `demo-integration.test.js` | 8 | 完整演示链路端到端验证：绑定→发布→同步→识别→验收→漂移→commit 绑定 |
+| `core.test.js` | 15 | Plan 解析、托管评论、任务绑定、状态推导、账本生成、计划版本漂移检测、边界情况 |
+| `codex-actions.test.js` | 15 | 配置加载、会话存储、自然语言路由、publish-plan、sync-ledger、show-ledger、人工动作、参数校验 |
+| `github-provider.test.js` | 12 | MCP/gh 通道选择、评论 CRUD、PR checks、PR reviews、PR commits、PR 详情（body）、MCP 关联 PR 搜索、边界情况 |
+| `demo-integration.test.js` | 8 | 完整演示链路端到端验证：绑定→发布→同步→识别→验收→漂移→commit 绑定→PR body 绑定 |
 
-**总计：47 个测试，全部通过。**
+**总计：50 个测试，全部通过。**
 
 ## 一期最小演示链路
 
@@ -136,7 +136,9 @@ todo → in_progress → implemented → verified → accepted
 | `packages/core` | `buildLedgerSnapshot` 支持 `previousTasks` 版本对比 |
 | `packages/core` | `inferTaskStates` 支持 `start`/`commit`/`blocking-review` 事实类型 |
 | `packages/github` | `listPullRequestCommits` — MCP + gh 双通道的 PR commit 列表 |
+| `packages/github` | `getPullRequest` — MCP + gh 双通道的 PR 完整详情（含 body） |
 | `packages/codex` | `buildFactsFromGitHub` 中的 commit task-links 解析 |
+| `packages/codex` | `syncLedger` 从 PR body 中提取 task-links |
 | `packages/codex` | `cli.js` — 命令行入口脚本 |
 | `hooks/hooks.json` | PreCommit hook 注册 |
 | `hooks/pre-commit-check` | 提交前检查 + 自动账本同步 |
@@ -144,7 +146,7 @@ todo → in_progress → implemented → verified → accepted
 | `templates/repo-config/` | 示例配置模板 |
 | `docs/一期失败场景说明.md` | 13 种失败场景及恢复方案 |
 | `docs/一期演示链路-walkthrough.md` | 端到端演示步骤 |
-| `tests/codex-plugin/demo-integration.test.js` | 6 个端到端集成测试，完整模拟设计文档演示链路 |
+| `tests/codex-plugin/demo-integration.test.js` | 8 个端到端集成测试，完整模拟设计文档演示链路 |
 
 ### 阶段完成情况
 
