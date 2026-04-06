@@ -312,6 +312,19 @@ export function createCodexActionRouter({
       }
 
       for (const review of pullRequest.reviews ?? []) {
+        // Extract task-links from review body (Section 六.3)
+        const reviewLinks = core.parseTaskLinks(review.body ?? '');
+        for (const link of reviewLinks) {
+          for (const taskId of link.tasks ?? []) {
+            links.add(taskId);
+            facts.push({
+              kind: 'binding',
+              taskId,
+              description: `review #${review.id}`,
+            });
+          }
+        }
+
         const blocking = ['CHANGES_REQUESTED', 'REQUEST_CHANGES', 'BLOCKED'].includes(
           String(review.state ?? '').toUpperCase(),
         );
