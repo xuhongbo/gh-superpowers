@@ -430,7 +430,51 @@ export function createCodexActionRouter({
     const { owner, repo } = parseRepository();
     const comment = renderTaskActionComment(action, payload.taskId, payload.reason);
     await sessionStore.recordAction(action, payload);
-    return provider.createIssueComment(owner, repo, issueNumber, comment);
+    await provider.createIssueComment(owner, repo, issueNumber, comment);
+
+    // After writing the action, update the ledger to reflect the new state
+    try {
+      const planVersion = await resolvePlanVersion(payload.planVersion);
+      const planText = await resolvePlanText({ issueNumber, planVersion }, issueNumber, planVersion);
+      const tasks = core.extractTasksFromPlan(planText);
+      const comments = await provider.listIssueComments(owner, repo, issueNumber);
+      const linkedPullRequests = await provider.listLinkedPullRequests(owner, repo, issueNumber);
+      const pullRequests = await Promise.all(
+        linkedPullRequests.map(async (pr) => {
+          const prDetail = await provider.getPullRequest(owner, repo, pr.number);
+          const prBodyTasks = new Set();
+          const bodyLinks = core.parseTaskLinks(prDetail.body ?? '');
+          for (const link of bodyLinks) {
+            for (const taskId of link.tasks ?? []) {
+              prBodyTasks.add(taskId);
+            }
+          }
+          return {
+            ...pr,
+            tasks: [...prBodyTasks],
+            body: prDetail.body ?? '',
+            commits: await provider.listPullRequestCommits(owner, repo, pr.number),
+            checks: await provider.listPullRequestChecks(owner, repo, pr.number),
+            reviews: await provider.listPullRequestReviews(owner, repo, pr.number),
+          };
+        }),
+      );
+      const facts = buildFactsFromGitHub(comments, pullRequests);
+      const snapshot = core.buildLedgerSnapshot({
+        issueNumber,
+        planVersion,
+        tasks,
+        facts,
+        requiredChecks: config.requiredChecks ?? [],
+      });
+      const ledgerComment = core.renderManagedComment(
+        { kind: 'ledger', issue: issueNumber, planVersion },
+        core.renderLedger(snapshot),
+      );
+      await provider.upsertManagedIssueComment(owner, repo, issueNumber, ledgerComment, `ledger:${planVersion}`);
+    } catch {
+      // If ledger update fails, the action comment is still written
+    }
   }
 
   return {
