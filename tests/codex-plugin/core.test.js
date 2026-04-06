@@ -237,5 +237,33 @@ describe('core helpers', () => {
       assert(snapshot.deviations.some((d) => d.includes('已移除')));
       assert(snapshot.deviations.some((d) => d.includes('新增')));
     });
+
+    it('renderLedger 包含下一步建议', () => {
+      const snapshot = buildLedgerSnapshot({
+        issueNumber: 42,
+        planVersion: 'v1',
+        tasks: [
+          { taskId: 'T1', title: '已验证' },
+          { taskId: 'T2', title: '已实现' },
+          { taskId: 'T3', title: '进行中' },
+          { taskId: 'T4', title: '待办' },
+        ],
+        facts: [
+          { kind: 'implementation', taskId: 'T1', description: 'PR #1' },
+          { kind: 'check', taskId: 'T1', checkName: 'build', status: 'success' },
+          { kind: 'check', taskId: 'T1', checkName: 'test', status: 'success' },
+          { kind: 'implementation', taskId: 'T2', description: 'PR #2' },
+          { kind: 'work', taskId: 'T3', description: '开始开发' },
+        ],
+        requiredChecks: ['build', 'test'],
+      });
+      const ledgerText = renderLedger(snapshot);
+
+      assert(ledgerText.includes('### 下一步建议'));
+      assert(ledgerText.includes('T1') && ledgerText.includes('验收'));
+      assert(ledgerText.includes('T2') && ledgerText.includes('验证'));
+      assert(ledgerText.includes('T3') && ledgerText.includes('进行中'));
+      assert(ledgerText.includes('T4') && ledgerText.includes('待开始'));
+    });
   });
 });

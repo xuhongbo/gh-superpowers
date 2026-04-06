@@ -304,6 +304,31 @@ export function renderLedger(snapshot) {
     })
     : ['- 无事实记录'];
 
+  // 下一步建议（Section 三.4：输出当前状态和下一步建议）
+  const suggestions = [];
+  const verifiedTasks = snapshot.tasks.filter((t) => t.state === 'verified');
+  const implementedTasks = snapshot.tasks.filter((t) => t.state === 'implemented');
+  const inProgressTasks = snapshot.tasks.filter((t) => t.state === 'in_progress');
+  const todoTasks = snapshot.tasks.filter((t) => t.state === 'todo');
+  const blockedTasks = snapshot.tasks.filter((t) => t.state === 'blocked');
+
+  if (verifiedTasks.length) {
+    suggestions.push(`待验收：${verifiedTasks.map((t) => t.taskId).join('、')} 已通过所有校验，建议人工验收`);
+  }
+  if (implementedTasks.length) {
+    suggestions.push(`待验证：${implementedTasks.map((t) => t.taskId).join('、')} 已实现，等待 check 通过`);
+  }
+  if (inProgressTasks.length) {
+    suggestions.push(`进行中：${inProgressTasks.map((t) => t.taskId).join('、')} 正在开发中`);
+  }
+  if (blockedTasks.length) {
+    suggestions.push(`被阻塞：${blockedTasks.map((t) => t.taskId).join('、')} 需要解决阻塞原因`);
+  }
+  if (todoTasks.length) {
+    suggestions.push(`待开始：${todoTasks.map((t) => t.taskId).join('、')} 尚未启动`);
+  }
+  const suggestionLines = suggestions.length ? suggestions : ['所有任务已完成'];
+
   return [
     issueLine,
     planLine,
@@ -317,5 +342,8 @@ export function renderLedger(snapshot) {
     '',
     '### 核心事实',
     ...factLines,
+    '',
+    '### 下一步建议',
+    ...suggestionLines,
   ].join('\n');
 }
