@@ -19,10 +19,10 @@ export function extractTasksFromPlan(planText) {
         tasks.push(current);
       }
       current = {
-        id: headerMatch[1],
+        taskId: headerMatch[1],
         title: headerMatch[2].trim(),
-        goal: '',
-        acceptance: '',
+        description: '',
+        acceptanceCriteria: '',
       };
       continue;
     }
@@ -33,13 +33,13 @@ export function extractTasksFromPlan(planText) {
 
     const goalMatch = line.match(/^-+\s*目标：\s*(.*)$/);
     if (goalMatch) {
-      current.goal = goalMatch[1].trim();
+      current.description = goalMatch[1].trim();
       continue;
     }
 
     const acceptanceMatch = line.match(/^-+\s*验收：\s*(.*)$/);
     if (acceptanceMatch) {
-      current.acceptance = acceptanceMatch[1].trim();
+      current.acceptanceCriteria = acceptanceMatch[1].trim();
     }
   }
 
@@ -106,7 +106,7 @@ export function parseTaskActions(text) {
 export function inferTaskStates({ tasks = [], facts = [], requiredChecks = [] } = {}) {
   const everyTask = new Map();
   for (const task of tasks) {
-    everyTask.set(task.id, { ...task, facts: [] });
+    everyTask.set(task.taskId, { ...task, facts: [] });
   }
 
   const orphanFacts = [];
@@ -123,7 +123,7 @@ export function inferTaskStates({ tasks = [], facts = [], requiredChecks = [] } 
   const results = [];
 
   for (const task of tasks) {
-    const record = everyTask.get(task.id);
+    const record = everyTask.get(task.taskId);
     const taskFacts = record ? record.facts : [];
     const actions = taskFacts.filter((item) => item.kind === 'action');
     const hasImplementation = taskFacts.some((item) => item.kind === 'implementation');
@@ -189,7 +189,7 @@ export function inferTaskStates({ tasks = [], facts = [], requiredChecks = [] } 
   }
 
   const deviations = [];
-  const tasksWithoutFacts = results.filter((task) => task.facts.length === 0).map((task) => task.id);
+  const tasksWithoutFacts = results.filter((task) => task.facts.length === 0).map((task) => task.taskId);
   if (tasksWithoutFacts.length) {
     deviations.push(`有任务暂无事实：${tasksWithoutFacts.join('、')}`);
   }
@@ -201,14 +201,14 @@ export function inferTaskStates({ tasks = [], facts = [], requiredChecks = [] } 
 
   const implementedWithoutVerification = results
     .filter((task) => task.state === 'implemented')
-    .map((task) => task.id);
+    .map((task) => task.taskId);
   if (implementedWithoutVerification.length) {
     deviations.push(`已实现但未验证：${implementedWithoutVerification.join('、')}`);
   }
 
   const verifiedWithoutAcceptance = results
     .filter((task) => task.state === 'verified')
-    .map((task) => task.id);
+    .map((task) => task.taskId);
   if (verifiedWithoutAcceptance.length) {
     deviations.push(`已验证但未验收：${verifiedWithoutAcceptance.join('、')}`);
   }
@@ -219,7 +219,7 @@ export function inferTaskStates({ tasks = [], facts = [], requiredChecks = [] } 
       const progressed = task.hasImplementation || task.hasWork || Object.keys(task.checkResults).length > 0;
       return blockAction && progressed;
     })
-    .map((task) => task.id);
+    .map((task) => task.taskId);
   if (blockedThenProgressed.length) {
     deviations.push(`阻塞后仍有事实推进：${blockedThenProgressed.join('、')}`);
   }
@@ -259,8 +259,8 @@ export function detectPlanVersionDrift(previousTasks = [], currentTasks = []) {
     return [];
   }
 
-  const previousIds = new Set(previousTasks.map((t) => t.id));
-  const currentIds = new Set(currentTasks.map((t) => t.id));
+  const previousIds = new Set(previousTasks.map((t) => t.taskId));
+  const currentIds = new Set(currentTasks.map((t) => t.taskId));
 
   const deviations = [];
 
@@ -284,7 +284,7 @@ export function renderLedger(snapshot) {
     ? `必需校验：${snapshot.requiredChecks.join('、')}`
     : '必需校验：无';
 
-  const taskLines = snapshot.tasks.map((task) => `- ${task.id} (${task.state}) ${task.title}`);
+  const taskLines = snapshot.tasks.map((task) => `- ${task.taskId} (${task.state}) ${task.title}`);
   const deviations = snapshot.deviations.length
     ? snapshot.deviations
     : ['无偏差'];

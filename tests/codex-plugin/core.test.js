@@ -24,8 +24,8 @@ const samplePlan = `
 `;
 
 const canonicalTasks = [
-  { id: 'T1', title: '项目结构准备', goal: '搭建插件骨架', acceptance: '存在 packages/core 和 tests 结构' },
-  { id: 'T2', title: '计划解析', goal: '将 plan 内容解析为任务', acceptance: '所有 taskId 都被抽取' },
+  { taskId: 'T1', title: '项目结构准备', description: '搭建插件骨架', acceptanceCriteria: '存在 packages/core 和 tests 结构' },
+  { taskId: 'T2', title: '计划解析', description: '将 plan 内容解析为任务', acceptanceCriteria: '所有 taskId 都被抽取' },
 ];
 
 const planBindings = `
@@ -42,13 +42,13 @@ const actionBlocks = `
 `;
 
 const comprehensiveTasks = [
-  { id: 'T1', title: '已验收任务', goal: '完成 A 步骤', acceptance: 'A 步骤验证通过' },
-  { id: 'T2', title: '阻塞任务', goal: '完成 B 步骤', acceptance: 'B 步骤验证通过' },
-  { id: 'T3', title: '已实现未验证', goal: '完成 C 步骤', acceptance: 'C 验收' },
-  { id: 'T4', title: '丢弃任务', goal: '完成 D 步骤', acceptance: 'D 验收' },
-  { id: 'T5', title: '待办任务', goal: '完成 E 步骤', acceptance: 'E 验收' },
-  { id: 'T6', title: '已验证未验收', goal: '完成 F 步骤', acceptance: 'F 验收' },
-  { id: 'T7', title: '进行中任务', goal: '完成 G 步骤', acceptance: 'G 验收' },
+  { taskId: 'T1', title: '已验收任务', description: '完成 A 步骤', acceptanceCriteria: 'A 步骤验证通过' },
+  { taskId: 'T2', title: '阻塞任务', description: '完成 B 步骤', acceptanceCriteria: 'B 步骤验证通过' },
+  { taskId: 'T3', title: '已实现未验证', description: '完成 C 步骤', acceptanceCriteria: 'C 验收' },
+  { taskId: 'T4', title: '丢弃任务', description: '完成 D 步骤', acceptanceCriteria: 'D 验收' },
+  { taskId: 'T5', title: '待办任务', description: '完成 E 步骤', acceptanceCriteria: 'E 验收' },
+  { taskId: 'T6', title: '已验证未验收', description: '完成 F 步骤', acceptanceCriteria: 'F 验收' },
+  { taskId: 'T7', title: '进行中任务', description: '完成 G 步骤', acceptanceCriteria: 'G 验收' },
 ];
 
 const comprehensiveFacts = [
@@ -100,7 +100,7 @@ describe('core helpers', () => {
 
     it('只含标题不含目标和验收的任务也能抽取', () => {
       const tasks = extractTasksFromPlan('### T1 只有标题');
-      assert.deepStrictEqual(tasks, [{ id: 'T1', title: '只有标题', goal: '', acceptance: '' }]);
+      assert.deepStrictEqual(tasks, [{ taskId: 'T1', title: '只有标题', description: '', acceptanceCriteria: '' }]);
     });
   });
 
@@ -153,7 +153,7 @@ describe('core helpers', () => {
         requiredChecks,
       });
 
-      const states = Object.fromEntries(inference.tasks.map((item) => [item.id, item.state]));
+      const states = Object.fromEntries(inference.tasks.map((item) => [item.taskId, item.state]));
       assert.deepStrictEqual(states, {
         T1: 'accepted',
         T2: 'blocked',
@@ -197,14 +197,14 @@ describe('core helpers', () => {
 
     it('detectPlanVersionDrift 检测新增和移除的任务', () => {
       const previous = [
-        { id: 'T1', title: '旧任务1' },
-        { id: 'T2', title: '旧任务2' },
-        { id: 'T3', title: '被移除的任务' },
+        { taskId: 'T1', title: '旧任务1' },
+        { taskId: 'T2', title: '旧任务2' },
+        { taskId: 'T3', title: '被移除的任务' },
       ];
       const current = [
-        { id: 'T1', title: '旧任务1' },
-        { id: 'T2', title: '旧任务2' },
-        { id: 'T4', title: '新增任务' },
+        { taskId: 'T1', title: '旧任务1' },
+        { taskId: 'T2', title: '旧任务2' },
+        { taskId: 'T4', title: '新增任务' },
       ];
 
       const deviations = detectPlanVersionDrift(previous, current);
@@ -216,12 +216,12 @@ describe('core helpers', () => {
     });
 
     it('detectPlanVersionDrift 无差异返回空', () => {
-      const tasks = [{ id: 'T1', title: '任务1' }];
+      const tasks = [{ taskId: 'T1', title: '任务1' }];
       assert.deepStrictEqual(detectPlanVersionDrift(tasks, tasks), []);
     });
 
     it('detectPlanVersionDrift 任一为空返回空', () => {
-      const tasks = [{ id: 'T1', title: '任务1' }];
+      const tasks = [{ taskId: 'T1', title: '任务1' }];
       assert.deepStrictEqual(detectPlanVersionDrift([], tasks), []);
       assert.deepStrictEqual(detectPlanVersionDrift(tasks, []), []);
     });
@@ -230,8 +230,8 @@ describe('core helpers', () => {
       const snapshot = buildLedgerSnapshot({
         ...ledgerContext,
         previousTasks: [
-          { id: 'T1', title: 'T1' },
-          { id: 'T99', title: '旧任务' },
+          { taskId: 'T1', title: 'T1' },
+          { taskId: 'T99', title: '旧任务' },
         ],
       });
       assert(snapshot.deviations.some((d) => d.includes('已移除')));

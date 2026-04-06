@@ -201,7 +201,7 @@ test('sync-ledger builds snapshot from GitHub facts and updates ledger comment',
   });
 
   const snapshot = await router.runAction('sync-ledger');
-  const states = Object.fromEntries(snapshot.tasks.map((task) => [task.id, task.state]));
+  const states = Object.fromEntries(snapshot.tasks.map((task) => [task.taskId, task.state]));
   assert.deepStrictEqual(states, {
     T1: 'accepted',
     T2: 'verified',

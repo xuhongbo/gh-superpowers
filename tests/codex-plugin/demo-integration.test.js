@@ -78,9 +78,9 @@ test('演示链路 step 2-3: 发布 plan 并自动抽取 Task', async () => {
 
   // 验证 Task 被正确抽取
   assert.strictEqual(result.tasks.length, 4);
-  assert.strictEqual(result.tasks[0].id, 'T1');
+  assert.strictEqual(result.tasks[0].taskId, 'T1');
   assert.strictEqual(result.tasks[0].title, '插件骨架');
-  assert.strictEqual(result.tasks[3].id, 'T4');
+  assert.strictEqual(result.tasks[3].taskId, 'T4');
 
   // 验证 planVersion
   assert.strictEqual(result.planVersion, 'v1');
@@ -156,7 +156,7 @@ test('演示链路 step 4-5: 通过 PR 和 check 更新账本，识别各任务�
   const snapshot = await router.runAction('sync-ledger');
 
   // 验证各任务状态
-  const states = Object.fromEntries(snapshot.tasks.map(t => [t.id, t.state]));
+  const states = Object.fromEntries(snapshot.tasks.map(t => [t.taskId, t.state]));
 
   // T1: 已验收（人工 accept）
   assert.strictEqual(states.T1, 'accepted', `T1 应为 accepted，实际 ${states.T1}`);
@@ -237,14 +237,14 @@ test('演示链路: 阻塞与解除阻塞', async () => {
 
 test('演示链路: 计划版本漂移检测', () => {
   const previousTasks = [
-    { id: 'T1', title: '旧任务1' },
-    { id: 'T2', title: '被移除的任务' },
-    { id: 'T3', title: '保留任务' },
+    { taskId: 'T1', title: '旧任务1' },
+    { taskId: 'T2', title: '被移除的任务' },
+    { taskId: 'T3', title: '保留任务' },
   ];
   const currentTasks = [
-    { id: 'T1', title: '旧任务1' },
-    { id: 'T3', title: '保留任务' },
-    { id: 'T4', title: '新增任务' },
+    { taskId: 'T1', title: '旧任务1' },
+    { taskId: 'T3', title: '保留任务' },
+    { taskId: 'T4', title: '新增任务' },
   ];
 
   const snapshot = core.buildLedgerSnapshot({
@@ -310,7 +310,7 @@ test('演示链路: commit 中的 task-links 被正确提取并推导为 in_prog
   const snapshot = await router.runAction('sync-ledger');
 
   // T1 通过 commit 绑定应变为 in_progress
-  const states = Object.fromEntries(snapshot.tasks.map(t => [t.id, t.state]));
+  const states = Object.fromEntries(snapshot.tasks.map(t => [t.taskId, t.state]));
   assert.strictEqual(states.T1, 'in_progress', `T1 应为 in_progress（commit 绑定），实际 ${states.T1}`);
 
   // 验证事实中包含 commit kind
@@ -359,7 +359,7 @@ test('演示链路: PR body 中的 task-links 被正确提取并推导为 in_pro
   const snapshot = await router.runAction('sync-ledger');
 
   // T1, T2 通过 PR body task-links 变为 implemented（有 PR 绑定但无 check 结果）
-  const states = Object.fromEntries(snapshot.tasks.map(t => [t.id, t.state]));
+  const states = Object.fromEntries(snapshot.tasks.map(t => [t.taskId, t.state]));
   assert.strictEqual(states.T1, 'implemented', `T1 应为 implemented（PR body 绑定），实际 ${states.T1}`);
   assert.strictEqual(states.T2, 'implemented', `T2 应为 implemented（PR body 绑定），实际 ${states.T2}`);
   assert.strictEqual(states.T3, 'todo', `T3 应为 todo，实际 ${states.T3}`);
