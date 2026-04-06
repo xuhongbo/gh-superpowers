@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "1.0",
+  "name": "gh-superpowers",
+  "version": "0.1.0",
+  "description": "Codex plugin that exposes gh-superpowers tasks, ledger, and issue bindings.",
+  "entrypoint": "packages/codex/src/index.js",
+  "interface": {
+    "actions": [
+      { "name": "bind-issue", "description": "关联当前 Codex 会话到指定 GitHub Issue。" },
+      { "name": "publish-plan", "description": "向 GitHub 发布当前 plan 并返回 planVersion。" },
+      { "name": "sync-ledger", "description": "同步 GitHub 事实、生成最新 ledger。" },
+      { "name": "show-ledger", "description": "展示当前 ledger 内容。" },
+      { "name": "accept-task", "description": "人工验收指定任务。" },
+      { "name": "block-task", "description": "标记任务阻塞及原因。" },
+      { "name": "unblock-task", "description": "解除任务障碍。" },
+      { "name": "drop-task", "description": "将任务标记为丢弃。" }
+    ],
+    "naturalLanguage": [
+      { "example": "绑定到 #42", "action": "bind-issue" },
+      { "example": "发布当前计划", "action": "publish-plan" },
+      { "example": "同步任务账本", "action": "sync-ledger" },
+      { "example": "显示账本", "action": "show-ledger" },
+      { "example": "验收 T2", "action": "accept-task" },
+      { "example": "阻塞 T3：等待接口稳定", "action": "block-task" },
+      { "example": "解除阻塞 T3", "action": "unblock-task" },
+      { "example": "丢弃 T4", "action": "drop-task" }
+    ],
+    "configurations": [
+      {
+        "name": "项目级配置",
+        "path": "gh-superpowers.config.json",
+        "template": "templates/repo-config/gh-superpowers.config.json"
+      }
+    ]
+  }
+}

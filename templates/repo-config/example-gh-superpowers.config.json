@@ -1,0 +1,7 @@
+{
+  "repository": "example/demo-repo",
+  "defaultBranch": "main",
+  "requiredChecks": ["test", "build"],
+  "taskLinkStyle": "comment-block",
+  "acceptanceMode": "manual"
+}

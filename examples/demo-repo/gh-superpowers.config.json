@@ -1,0 +1,13 @@
+# 示例：业务仓配置文件
+
+将此文件放在业务仓库根目录：`gh-superpowers.config.json`
+
+```json
+{
+  "repository": "owner/demo-repo",
+  "defaultBranch": "main",
+  "requiredChecks": ["test", "build"],
+  "taskLinkStyle": "comment-block",
+  "acceptanceMode": "manual"
+}
+```

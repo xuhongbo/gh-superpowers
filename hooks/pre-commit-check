@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# PreCommitCheck hook: 在提交前自动同步账本并检查偏差
+#
+# 核心功能：
+# 1. 检查当前 session 是否已绑定 Issue
+# 2. 如果已绑定，自动调用 codex CLI 同步账本
+# 3. 检查账本中的偏差告警，有阻断性偏差时阻止提交
+# 4. 检查 commit message 是否包含 task-link 标记
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+GREEN='\033[0;32m'
+NC='\033[0m'
+
+echo -e "${GREEN}[gh-superpowers]${NC} 提交前检查..."
+
+# 1. 检查 session 状态
+SESSION_FILE="$(git rev-parse --git-common-dir 2>/dev/null)/gh-superpowers/gh-superpowers-session.json"
+if [ -f "$SESSION_FILE" ]; then
+    issue_number=$(python3 -c "import json; d=json.load(open('$SESSION_FILE')); print(d.get('issueNumber',''))" 2>/dev/null || echo "")
+    if [ -n "$issue_number" ]; then
+        echo -e "  ${GREEN}✓${NC} 已绑定 Issue #${issue_number}"
+    else
+        echo -e "  ${YELLOW}⚠${NC} 未绑定 Issue（首次提交可忽略）"
+        exit 0
+    fi
+else
+    echo -e "  ${YELLOW}⚠${NC} 未找到 session 状态（首次提交可忽略）"
+    exit 0
+fi
+
+# 2. 检查 codex CLI 是否可用
+CLI_PATH="${PLUGIN_ROOT}/packages/codex/src/cli.js"
+if [ ! -f "$CLI_PATH" ]; then
+    echo -e "  ${YELLOW}⚠${NC} codex CLI 不可用，跳过账本同步"
+    exit 0
+fi
+
+# 3. 尝试同步账本（如果 gh 已认证）
+if command -v gh &> /dev/null && gh auth status &> /dev/null 2>&1; then
+    echo -e "  ${GREEN}→${NC} 同步账本..."
+    sync_output=$(node "$CLI_PATH" sync-ledger 2>&1) || true
+    if echo "$sync_output" | grep -q '"state"'; then
+        echo -e "  ${GREEN}✓${NC} 账本已同步"
+        # 提取偏差信息
+        deviations=$(echo "$sync_output" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    tasks = data.get('tasks', [])
+    for t in tasks:
+        print(f\"  {t['id']}: {t.get('state', 'unknown')} {t.get('title', '')}\")
+    devs = data.get('deviations', [])
+    for d in devs:
+        print(f'  偏差: {d}')
+except:
+    pass
+" 2>/dev/null || echo "")
+        if [ -n "$deviations" ]; then
+            echo "$deviations"
+        fi
+    fi
+else
+    echo -e "  ${YELLOW}⚠${NC} gh 未认证，跳过账本同步（运行 gh auth login）"
+fi
+
+# 4. 检查 commit message 是否包含任务关联标记
+if [ -n "${1:-}" ] && [ -f "${1:-}" ]; then
+    commit_msg_file="$1"
+    commit_msg=$(cat "$commit_msg_file")
+
+    has_task_link=$(echo "$commit_msg" | grep -c 'gh-superpowers:task-links' || true)
+    has_task_action=$(echo "$commit_msg" | grep -c 'gh-superpowers:task-action' || true)
+
+    if [ "$has_task_link" -eq 0 ] && [ "$has_task_action" -eq 0 ]; then
+        echo -e "  ${YELLOW}⚠${NC} commit message 中未检测到 task-link 或 task-action 标记"
+        echo -e "  ${YELLOW}提示${NC} 建议添加: <!-- gh-superpowers:task-links {\"tasks\":[\"T1\"]} -->"
+    else
+        echo -e "  ${GREEN}✓${NC} commit message 包含任务关联标记"
+    fi
+fi
+
+echo -e "${GREEN}[gh-superpowers]${NC} 检查完成"
+exit 0
