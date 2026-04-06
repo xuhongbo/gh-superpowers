@@ -1,4 +1,6 @@
-const MANAGED_COMMENT_MARKER = (tag) => `<!-- managed:${tag} -->`;
+// Embed a hidden unique marker in managed comments for upsert detection.
+// The marker is placed as an HTML comment that won't render but is searchable.
+const MANAGED_COMMENT_MARKER = (tag) => `<!-- sp-tag:${tag} -->`;
 
 function normalizeIssue(payload = {}, fallbackNumber) {
   const numberValue = typeof payload.number === 'number' ? payload.number : Number(payload.number);
@@ -114,7 +116,7 @@ export class GitHubMcpProvider {
 
   async upsertManagedIssueComment(owner, repo, issueNumber, body, uniqueTag) {
     const marker = MANAGED_COMMENT_MARKER(uniqueTag);
-    const managedBody = ensureMarker(body, marker);
+    const managedBody = `${marker}\n${body}`;
     const comments = await this.listIssueComments(owner, repo, issueNumber);
     const existing = comments.find((comment) => comment.body.includes(marker));
     if (existing) {
@@ -165,6 +167,17 @@ export class GitHubMcpProvider {
     return reviews.map(normalizeReview);
   }
 
+  async listPullRequestReviewComments(owner, repo, pullNumber) {
+    const data = await this.call({ path: `/repos/${owner}/${repo}/pulls/${pullNumber}/comments` });
+    const comments = Array.isArray(data) ? data : [];
+    return comments.map((c) => ({
+      id: c.id ?? 0,
+      body: c.body ?? '',
+      path: c.path ?? '',
+      author: c.user?.login ?? undefined,
+    }));
+  }
+
   async listPullRequestCommits(owner, repo, pullNumber) {
     const data = await this.call({ path: `/repos/${owner}/${repo}/pulls/${pullNumber}/commits` });
     const commits = Array.isArray(data) ? data : data?.commits ?? data?.nodes ?? [];
@@ -196,7 +209,8 @@ export class GhCliGitHubProvider {
 
   async listIssueComments(owner, repo, issueNumber) {
     const data = await this.viewIssue(owner, repo, issueNumber, ['comments']);
-    const nodes = (data.comments?.nodes ?? []) || [];
+    // gh issue view --json comments returns a flat array, not { nodes: [...] }
+    const nodes = Array.isArray(data.comments) ? data.comments : (data.comments?.nodes ?? []);
     return nodes.map(normalizeComment);
   }
 
@@ -214,7 +228,7 @@ export class GhCliGitHubProvider {
 
   async upsertManagedIssueComment(owner, repo, issueNumber, body, uniqueTag) {
     const marker = MANAGED_COMMENT_MARKER(uniqueTag);
-    const managedBody = ensureMarker(body, marker);
+    const managedBody = `${marker}\n${body}`;
     const comments = await this.listIssueComments(owner, repo, issueNumber);
     const existing = comments.find((comment) => comment.body.includes(marker));
     if (existing) {
@@ -224,14 +238,55 @@ export class GhCliGitHubProvider {
   }
 
   async listLinkedPullRequests(owner, repo, issueNumber) {
-    const data = await this.viewIssue(owner, repo, issueNumber, ['linkedPullRequests']);
-    const nodes = (data.linkedPullRequests?.nodes ?? []) || [];
-    return nodes.map((node) => ({
-      number: typeof node.number === 'number' ? node.number : Number(node.number),
-      title: node.title ?? '',
-      url: node.url ?? '',
-      state: node.state ?? undefined,
-    }));
+    // gh issue view doesn't support linkedPullRequests, so use the GraphQL API
+    const query = `query($owner:String!,$repo:String!,$num:Int!){
+      repository(owner:$owner,name:$repo){
+        issue(number:$num){
+          timelineItems(first:20, itemTypes:CONNECTED_EVENT){
+            nodes{
+              ...on ConnectedEvent{
+                subject{
+                  ...on PullRequest{number,title,state,url}
+                }
+              }
+            }
+          }
+        }
+      }
+    }`;
+    try {
+      const stdout = await this.runGh([
+        'api', 'graphql',
+        '-f', `query=${query}`,
+        '-F', `owner=${owner}`,
+        '-F', `repo=${repo}`,
+        '-F', `num=${issueNumber}`,
+      ]);
+      const data = JSON.parse(stdout);
+      const nodes = data?.data?.repository?.issue?.timelineItems?.nodes ?? [];
+      return nodes
+        .map((node) => node?.subject)
+        .filter(Boolean)
+        .map((pr) => ({
+          number: typeof pr.number === 'number' ? pr.number : Number(pr.number),
+          title: pr.title ?? '',
+          url: pr.url ?? '',
+          state: pr.state ?? undefined,
+        }));
+    } catch {
+      // Fallback: search for PRs mentioning the issue number
+      const stdout = await this.runGh([
+        'pr', 'list', '--repo', `${owner}/${repo}`,
+        '--search', `#${issueNumber}`, '--state', 'all', '--json', 'number,title,state,url',
+      ]);
+      const data = JSON.parse(stdout);
+      return (Array.isArray(data) ? data : []).map((pr) => ({
+        number: typeof pr.number === 'number' ? pr.number : Number(pr.number),
+        title: pr.title ?? '',
+        url: pr.url ?? '',
+        state: pr.state ?? undefined,
+      }));
+    }
   }
 
   async getPullRequest(owner, repo, pullNumber) {
@@ -289,6 +344,23 @@ export class GhCliGitHubProvider {
     const data = JSON.parse(stdout);
     const reviews = Array.isArray(data) ? data : data.reviews ?? [];
     return reviews.map(normalizeReview);
+  }
+
+  async listPullRequestReviewComments(owner, repo, pullNumber) {
+    const stdout = await this.runGh([
+      'api',
+      `repos/${owner}/${repo}/pulls/${pullNumber}/comments`,
+      '--method',
+      'GET',
+    ]);
+    const data = JSON.parse(stdout);
+    const comments = Array.isArray(data) ? data : [];
+    return comments.map((c) => ({
+      id: c.id ?? 0,
+      body: c.body ?? '',
+      path: c.path ?? '',
+      author: c.user?.login ?? undefined,
+    }));
   }
 
   async listPullRequestCommits(owner, repo, pullNumber) {

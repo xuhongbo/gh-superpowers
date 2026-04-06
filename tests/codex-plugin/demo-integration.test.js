@@ -304,14 +304,14 @@ test('演示链路: commit 中的 task-links 被正确提取并推导为 in_prog
     sessionStore: store,
     provider,
     core,
-    config: { repository: 'example/demo-repo' },
+    config: { repository: 'example/demo-repo', requiredChecks: ['build', 'test'] },
   });
 
   const snapshot = await router.runAction('sync-ledger');
 
-  // T1 通过 commit 绑定应变为 in_progress
+  // T1 通过 commit 绑定应变为 implemented（有 commit 但无 check 结果）
   const states = Object.fromEntries(snapshot.tasks.map(t => [t.taskId, t.state]));
-  assert.strictEqual(states.T1, 'in_progress', `T1 应为 in_progress（commit 绑定），实际 ${states.T1}`);
+  assert.strictEqual(states.T1, 'implemented', `T1 应为 implemented（commit 绑定但无 check），实际 ${states.T1}`);
 
   // 验证事实中包含 commit kind
   assert(snapshot.facts.some(f => f.kind === 'commit' && f.taskId === 'T1'), '应包含 commit 事实');

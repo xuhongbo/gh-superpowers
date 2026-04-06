@@ -122,7 +122,7 @@ describe('GhCliGitHubProvider', () => {
     ]);
 
     const provider = new GhCliGitHubProvider(runner);
-    const marker = '<!-- managed:foo -->';
+    const marker = '<!-- sp-tag:foo -->';
     const comment = await provider.upsertManagedIssueComment('example', 'proj', 50, 'hello', 'foo');
 
     assert.strictEqual(comment.id, 101);
@@ -141,7 +141,7 @@ describe('GhCliGitHubProvider', () => {
           stdout: JSON.stringify({
             comments: {
               nodes: [
-                { databaseId: 200, body: 'old<!-- managed:foo -->', author: { login: 'bot' } },
+                { databaseId: 200, body: 'old<!-- sp-tag:foo -->', author: { login: 'bot' } },
               ],
             },
           }),
@@ -163,7 +163,7 @@ describe('GhCliGitHubProvider', () => {
     assert(updateCall, 'expected PATCH call to run');
     const bodyArg = updateCall?.find((arg) => arg.startsWith('body='));
     assert(bodyArg?.includes('updated'));
-    assert(bodyArg?.includes('<!-- managed:foo -->'));
+    assert(bodyArg?.includes('<!-- sp-tag:foo -->'));
   });
 
   it('gets full pull request details including body', async () => {

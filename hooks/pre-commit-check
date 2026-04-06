@@ -21,17 +21,17 @@ echo -e "${GREEN}[gh-superpowers]${NC} 提交前检查..."
 
 # 1. 检查 session 状态
 SESSION_FILE="$(git rev-parse --git-common-dir 2>/dev/null)/gh-superpowers/gh-superpowers-session.json"
+session_bound=false
 if [ -f "$SESSION_FILE" ]; then
     issue_number=$(python3 -c "import json; d=json.load(open('$SESSION_FILE')); print(d.get('issueNumber',''))" 2>/dev/null || echo "")
     if [ -n "$issue_number" ]; then
         echo -e "  ${GREEN}✓${NC} 已绑定 Issue #${issue_number}"
+        session_bound=true
     else
         echo -e "  ${YELLOW}⚠${NC} 未绑定 Issue（首次提交可忽略）"
-        exit 0
     fi
 else
     echo -e "  ${YELLOW}⚠${NC} 未找到 session 状态（首次提交可忽略）"
-    exit 0
 fi
 
 # 2. 检查 codex CLI 是否可用

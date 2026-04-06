@@ -340,6 +340,21 @@ export function createCodexActionRouter({
           });
         }
       }
+
+      // Extract task-links from individual review comments (line-level)
+      for (const reviewComment of pullRequest.reviewComments ?? []) {
+        const rcLinks = core.parseTaskLinks(reviewComment.body ?? '');
+        for (const link of rcLinks) {
+          for (const taskId of link.tasks ?? []) {
+            links.add(taskId);
+            facts.push({
+              kind: 'binding',
+              taskId,
+              description: `review-comment #${reviewComment.id}`,
+            });
+          }
+        }
+      }
     }
 
     return facts;
@@ -394,6 +409,9 @@ export function createCodexActionRouter({
             prBodyTasks.add(taskId);
           }
         }
+        const reviewComments = provider.listPullRequestReviewComments
+          ? await provider.listPullRequestReviewComments(owner, repo, pullRequest.number)
+          : [];
         return {
           ...pullRequest,
           tasks: [...prBodyTasks],
@@ -401,6 +419,7 @@ export function createCodexActionRouter({
           commits: await provider.listPullRequestCommits(owner, repo, pullRequest.number),
           checks: await provider.listPullRequestChecks(owner, repo, pullRequest.number),
           reviews: await provider.listPullRequestReviews(owner, repo, pullRequest.number),
+          reviewComments,
         };
       }),
     );
@@ -453,8 +472,8 @@ export function createCodexActionRouter({
       const comments = await provider.listIssueComments(owner, repo, issueNumber);
       const linkedPullRequests = await provider.listLinkedPullRequests(owner, repo, issueNumber);
       const pullRequests = await Promise.all(
-        linkedPullRequests.map(async (pr) => {
-          const prDetail = await provider.getPullRequest(owner, repo, pr.number);
+        linkedPullRequests.map(async (pullRequest) => {
+          const prDetail = await provider.getPullRequest(owner, repo, pullRequest.number);
           const prBodyTasks = new Set();
           const bodyLinks = core.parseTaskLinks(prDetail.body ?? '');
           for (const link of bodyLinks) {
@@ -462,13 +481,17 @@ export function createCodexActionRouter({
               prBodyTasks.add(taskId);
             }
           }
+          const reviewComments = provider.listPullRequestReviewComments
+            ? await provider.listPullRequestReviewComments(owner, repo, pullRequest.number)
+            : [];
           return {
-            ...pr,
+            ...pullRequest,
             tasks: [...prBodyTasks],
             body: prDetail.body ?? '',
-            commits: await provider.listPullRequestCommits(owner, repo, pr.number),
-            checks: await provider.listPullRequestChecks(owner, repo, pr.number),
-            reviews: await provider.listPullRequestReviews(owner, repo, pr.number),
+            commits: await provider.listPullRequestCommits(owner, repo, pullRequest.number),
+            checks: await provider.listPullRequestChecks(owner, repo, pullRequest.number),
+            reviews: await provider.listPullRequestReviews(owner, repo, pullRequest.number),
+            reviewComments,
           };
         }),
       );

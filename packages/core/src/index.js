@@ -127,9 +127,9 @@ export function inferTaskStates({ tasks = [], facts = [], requiredChecks = [] } 
     const taskFacts = record ? record.facts : [];
     const actions = taskFacts.filter((item) => item.kind === 'action');
     const hasImplementation = taskFacts.some((item) => item.kind === 'implementation');
+    const hasCommit = taskFacts.some((item) => item.kind === 'commit');
     const hasWork = taskFacts.some((item) => item.kind === 'work' || item.kind === 'binding');
     const hasStart = taskFacts.some((item) => item.kind === 'start');
-    const hasCommit = taskFacts.some((item) => item.kind === 'commit');
     const hasPr = taskFacts.some((item) => item.kind === 'binding' || item.kind === 'implementation');
     const checkResults = {};
     for (const fact of taskFacts) {
@@ -168,9 +168,9 @@ export function inferTaskStates({ tasks = [], facts = [], requiredChecks = [] } 
       state = 'blocked';
     } else if (hasAccept) {
       state = 'accepted';
-    } else if (hasImplementation && allChecksPass) {
+    } else if ((hasImplementation || hasCommit) && allChecksPass) {
       state = 'verified';
-    } else if (hasImplementation) {
+    } else if (hasImplementation || hasCommit) {
       state = 'implemented';
     } else if (hasWork || hasStart || hasCommit || hasPr) {
       state = 'in_progress';
@@ -182,6 +182,7 @@ export function inferTaskStates({ tasks = [], facts = [], requiredChecks = [] } 
       facts: taskFacts,
       actions,
       hasImplementation,
+      hasCommit,
       hasWork,
       checkResults,
       hasAnyChecks,
@@ -216,7 +217,7 @@ export function inferTaskStates({ tasks = [], facts = [], requiredChecks = [] } 
   const blockedThenProgressed = results
     .filter((task) => {
       const blockAction = task.actions.some((action) => action.action === 'block');
-      const progressed = task.hasImplementation || task.hasWork || Object.keys(task.checkResults).length > 0;
+      const progressed = task.hasImplementation || task.hasCommit || task.hasWork || Object.keys(task.checkResults).length > 0;
       return blockAction && progressed;
     })
     .map((task) => task.taskId);
