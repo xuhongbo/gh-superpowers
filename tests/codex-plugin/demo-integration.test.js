@@ -118,6 +118,10 @@ test('演示链路 step 4-5: 通过 PR 和 check 更新账本，识别各任务�
         { number: 12, title: '状态推导', tasks: ['T3'], body: '<!-- gh-superpowers:task-links {"tasks":["T3"]} -->' },
       ];
     },
+    async getPullRequest(_o, _r, num) {
+      const bodies = { 10: '<!-- gh-superpowers:task-links {"tasks":["T1"]} -->', 11: '<!-- gh-superpowers:task-links {"tasks":["T2"]} -->', 12: '<!-- gh-superpowers:task-links {"tasks":["T3"]} -->' };
+      return { number: num, title: '', body: bodies[num] ?? '' };
+    },
     async listPullRequestCommits() {
       return [];
     },
@@ -274,6 +278,9 @@ test('演示链路: commit 中的 task-links 被正确提取并推导为 in_prog
         },
       ];
     },
+    async getPullRequest() {
+      return { number: 20, title: '通过 commit 绑定任务', body: '' };
+    },
     async listPullRequestCommits() {
       return [
         {
@@ -308,4 +315,57 @@ test('演示链路: commit 中的 task-links 被正确提取并推导为 in_prog
 
   // 验证事实中包含 commit kind
   assert(snapshot.facts.some(f => f.kind === 'commit' && f.taskId === 'T1'), '应包含 commit 事实');
+});
+
+test('演示链路: PR body 中的 task-links 被正确提取并推导为 in_progress', async () => {
+  const upserts = [];
+  const planComment = core.renderManagedComment({ kind: 'plan', issue: 42, version: 'v1' }, demoPlan);
+
+  const provider = {
+    async listIssueComments() {
+      return [{ id: 1, body: planComment }];
+    },
+    async listLinkedPullRequests() {
+      return [
+        { number: 30, title: 'PR with body task-links', tasks: [] },
+      ];
+    },
+    async getPullRequest() {
+      return {
+        number: 30,
+        title: 'PR with body task-links',
+        body: '实现 T1 和 T2\n<!-- gh-superpowers:task-links {"tasks":["T1","T2"]} -->',
+      };
+    },
+    async listPullRequestCommits() {
+      return [];
+    },
+    async listPullRequestChecks() { return []; },
+    async listPullRequestReviews() { return []; },
+    async upsertManagedIssueComment(_o, _r, _i, body, tag) {
+      upserts.push({ body, tag });
+      return { id: 100, body };
+    },
+  };
+
+  const store = createMemorySessionStore({ issueNumber: 42, planVersion: 'v1' });
+  const router = createCodexActionRouter({
+    sessionStore: store,
+    provider,
+    core,
+    config: { repository: 'example/demo-repo', requiredChecks: ['build', 'test'] },
+  });
+
+  const snapshot = await router.runAction('sync-ledger');
+
+  // T1, T2 通过 PR body task-links 变为 implemented（有 PR 绑定但无 check 结果）
+  const states = Object.fromEntries(snapshot.tasks.map(t => [t.id, t.state]));
+  assert.strictEqual(states.T1, 'implemented', `T1 应为 implemented（PR body 绑定），实际 ${states.T1}`);
+  assert.strictEqual(states.T2, 'implemented', `T2 应为 implemented（PR body 绑定），实际 ${states.T2}`);
+  assert.strictEqual(states.T3, 'todo', `T3 应为 todo，实际 ${states.T3}`);
+  assert.strictEqual(states.T4, 'todo', `T4 应为 todo，实际 ${states.T4}`);
+
+  // 验证事实中包含 binding 和 implementation
+  assert(snapshot.facts.some(f => f.kind === 'binding' && f.taskId === 'T1'), '应包含 binding 事实');
+  assert(snapshot.facts.some(f => f.kind === 'implementation' && f.taskId === 'T1'), '应包含 implementation 事实');
 });

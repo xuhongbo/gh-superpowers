@@ -166,6 +166,33 @@ describe('GhCliGitHubProvider', () => {
     assert(bodyArg?.includes('<!-- managed:foo -->'));
   });
 
+  it('gets full pull request details including body', async () => {
+    const runner = new StubRunner([
+      {
+        matches: matchPullRequestView('example', 'proj', 10, ['number', 'title', 'body', 'state', 'url']),
+        result: {
+          exitCode: 0,
+          stdout: JSON.stringify({
+            number: 10,
+            title: 'Implement task links',
+            body: 'Implementation\n<!-- gh-superpowers:task-links {"tasks":["T1","T2"]} -->',
+            state: 'open',
+            url: 'https://github.com/example/proj/pull/10',
+          }),
+        },
+      },
+    ]);
+
+    const provider = new GhCliGitHubProvider(runner);
+    const pr = await provider.getPullRequest('example', 'proj', 10);
+
+    assert.strictEqual(pr.number, 10);
+    assert.strictEqual(pr.title, 'Implement task links');
+    assert(pr.body.includes('task-links'));
+    assert(pr.body.includes('T1'));
+    assert(pr.body.includes('T2'));
+  });
+
   it('lists pull request checks with gh pr view + check-runs', async () => {
     const runner = new StubRunner([
       {
@@ -345,5 +372,29 @@ describe('GitHubMcpProvider', () => {
     assert.strictEqual(commits.length, 1);
     assert.strictEqual(commits[0].sha, 'abc1234');
     assert(commits[0].message.includes('auth bug'));
+  });
+
+  it('gets full pull request details including body', async () => {
+    const client = new StubMcpClient([
+      {
+        matches: matchMcpRequest('/repos/example/proj/pulls/10'),
+        result: {
+          number: 10,
+          title: 'Implement task links',
+          body: 'Implementation details\n<!-- gh-superpowers:task-links {"tasks":["T1","T2"]} -->',
+          state: 'open',
+          html_url: 'https://github.com/example/proj/pull/10',
+        },
+      },
+    ]);
+
+    const provider = new GitHubMcpProvider(client);
+    const pr = await provider.getPullRequest('example', 'proj', 10);
+
+    assert.strictEqual(pr.number, 10);
+    assert.strictEqual(pr.title, 'Implement task links');
+    assert(pr.body.includes('task-links'));
+    assert(pr.body.includes('T1'));
+    assert(pr.body.includes('T2'));
   });
 });

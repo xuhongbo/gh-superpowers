@@ -171,6 +171,9 @@ test('sync-ledger builds snapshot from GitHub facts and updates ledger comment',
         },
       ];
     },
+    async getPullRequest() {
+      return { number: 7, title: '实现账本同步', body: '<!-- gh-superpowers:task-links {"tasks":["T2"]} -->' };
+    },
     async listPullRequestCommits() {
       return [];
     },

@@ -372,12 +372,24 @@ export function createCodexActionRouter({
     const comments = await provider.listIssueComments(owner, repo, issueNumber);
     const linkedPullRequests = await provider.listLinkedPullRequests(owner, repo, issueNumber);
     const pullRequests = await Promise.all(
-      linkedPullRequests.map(async (pullRequest) => ({
-        ...pullRequest,
-        commits: await provider.listPullRequestCommits(owner, repo, pullRequest.number),
-        checks: await provider.listPullRequestChecks(owner, repo, pullRequest.number),
-        reviews: await provider.listPullRequestReviews(owner, repo, pullRequest.number),
-      })),
+      linkedPullRequests.map(async (pullRequest) => {
+        const prDetail = await provider.getPullRequest(owner, repo, pullRequest.number);
+        const prBodyTasks = new Set();
+        const bodyLinks = core.parseTaskLinks(prDetail.body ?? '');
+        for (const link of bodyLinks) {
+          for (const taskId of link.tasks ?? []) {
+            prBodyTasks.add(taskId);
+          }
+        }
+        return {
+          ...pullRequest,
+          tasks: [...prBodyTasks],
+          body: prDetail.body ?? '',
+          commits: await provider.listPullRequestCommits(owner, repo, pullRequest.number),
+          checks: await provider.listPullRequestChecks(owner, repo, pullRequest.number),
+          reviews: await provider.listPullRequestReviews(owner, repo, pullRequest.number),
+        };
+      }),
     );
 
     const facts = buildFactsFromGitHub(comments, pullRequests);

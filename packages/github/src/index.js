@@ -137,6 +137,17 @@ export class GitHubMcpProvider {
     }));
   }
 
+  async getPullRequest(owner, repo, pullNumber) {
+    const data = await this.call({ path: `/repos/${owner}/${repo}/pulls/${pullNumber}` });
+    return {
+      number: data.number,
+      title: data.title ?? '',
+      body: data.body ?? '',
+      state: data.state ?? undefined,
+      url: data.html_url ?? data.url ?? '',
+    };
+  }
+
   async listPullRequestChecks(owner, repo, pullNumber) {
     const pr = await this.call({ path: `/repos/${owner}/${repo}/pulls/${pullNumber}` });
     const sha = pr?.head?.sha;
@@ -221,6 +232,26 @@ export class GhCliGitHubProvider {
       url: node.url ?? '',
       state: node.state ?? undefined,
     }));
+  }
+
+  async getPullRequest(owner, repo, pullNumber) {
+    const stdout = await this.runGh([
+      'pr',
+      'view',
+      pullNumber.toString(),
+      '--repo',
+      `${owner}/${repo}`,
+      '--json',
+      'number,title,body,state,url',
+    ]);
+    const data = JSON.parse(stdout);
+    return {
+      number: typeof data.number === 'number' ? data.number : Number(data.number),
+      title: data.title ?? '',
+      body: data.body ?? '',
+      state: data.state ?? undefined,
+      url: data.url ?? '',
+    };
   }
 
   async listPullRequestChecks(owner, repo, pullNumber) {
