@@ -14,7 +14,6 @@
 //   node packages/codex/src/cli.js unblock-task T2
 //   node packages/codex/src/cli.js drop-task T3
 
-import { execSync } from 'node:child_process';
 import { createCodexActionRouter, createSessionStore, loadRepoConfig, routeNaturalLanguage } from './index.js';
 import * as core from '../../core/src/index.js';
 import { createGitHubProvider } from '../../github/src/index.js';
@@ -36,10 +35,13 @@ async function main() {
   const runner = {
     async run(cmdArgs) {
       try {
-        const stdout = execSync(`gh ${cmdArgs.join(' ')}`, { cwd, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+        const { execFile: execFileCb } = await import('node:child_process');
+        const { promisify } = await import('node:util');
+        const execFile = promisify(execFileCb);
+        const { stdout } = await execFile('gh', cmdArgs, { cwd, encoding: 'utf8' });
         return { exitCode: 0, stdout, stderr: '' };
       } catch (error) {
-        return { exitCode: error.status ?? 1, stdout: error.stdout ?? '', stderr: error.stderr ?? '' };
+        return { exitCode: error.status ?? error.code ? 1 : 1, stdout: error.stdout ?? '', stderr: error.stderr ?? '' };
       }
     },
   };

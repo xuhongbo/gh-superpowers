@@ -14,7 +14,13 @@ function normalizeIssue(payload = {}, fallbackNumber) {
 }
 
 function normalizeComment(payload = {}) {
-  const idValue = typeof payload.databaseId === 'number' ? payload.databaseId : Number(payload.id);
+  // gh issue view returns string id (node ID) and numeric databaseId.
+  // MCP REST API returns numeric id directly.
+  const idValue = typeof payload.databaseId === 'number'
+    ? payload.databaseId
+    : typeof payload.id === 'number'
+      ? payload.id
+      : Number(payload.id);
   return {
     id: Number.isFinite(idValue) ? idValue : 0,
     body: payload.body ?? payload.body_text ?? '',
@@ -208,10 +214,16 @@ export class GhCliGitHubProvider {
   }
 
   async listIssueComments(owner, repo, issueNumber) {
-    const data = await this.viewIssue(owner, repo, issueNumber, ['comments']);
-    // gh issue view --json comments returns a flat array, not { nodes: [...] }
-    const nodes = Array.isArray(data.comments) ? data.comments : (data.comments?.nodes ?? []);
-    return nodes.map(normalizeComment);
+    // Use REST API instead of gh issue view --json comments to get proper numeric IDs
+    const stdout = await this.runGh([
+      'api',
+      `repos/${owner}/${repo}/issues/${issueNumber}/comments`,
+      '--method',
+      'GET',
+    ]);
+    const data = JSON.parse(stdout);
+    const items = Array.isArray(data) ? data : [];
+    return items.map(normalizeComment);
   }
 
   async createIssueComment(owner, repo, issueNumber, body) {
@@ -220,7 +232,7 @@ export class GhCliGitHubProvider {
       `repos/${owner}/${repo}/issues/${issueNumber}/comments`,
       '--method',
       'POST',
-      '-f',
+      '--field',
       `body=${body}`,
     ]);
     return normalizeComment(JSON.parse(stdout));
@@ -381,7 +393,7 @@ export class GhCliGitHubProvider {
       `repos/${owner}/${repo}/issues/comments/${commentId}`,
       '--method',
       'PATCH',
-      '-f',
+      '--field',
       `body=${body}`,
     ]);
     return normalizeComment(JSON.parse(stdout));

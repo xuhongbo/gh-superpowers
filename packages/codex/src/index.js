@@ -228,7 +228,10 @@ export function createCodexActionRouter({
       return payload.planText;
     }
     if (typeof loadPlanText === 'function') {
-      return await loadPlanText();
+      const text = await loadPlanText();
+      if (text) {
+        return text;
+      }
     }
 
     const { owner, repo } = parseRepository();

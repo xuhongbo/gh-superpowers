@@ -1,0 +1,7 @@
+{
+  "repository": "xuhongbo/gh-superpowers",
+  "defaultBranch": "feat/harness",
+  "requiredChecks": [],
+  "taskLinkStyle": "comment-block",
+  "acceptanceMode": "manual"
+}

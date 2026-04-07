@@ -106,10 +106,10 @@ describe('GhCliGitHubProvider', () => {
   it('upserts a managed comment by creating when missing', async () => {
     const runner = new StubRunner([
       {
-        matches: matchIssueView('example', 'proj', 50, ['comments']),
+        matches: matchApi('repos/example/proj/issues/50/comments', 'GET'),
         result: {
           exitCode: 0,
-          stdout: JSON.stringify({ comments: { nodes: [] } }),
+          stdout: JSON.stringify([]),
         },
       },
       {
@@ -135,23 +135,19 @@ describe('GhCliGitHubProvider', () => {
   it('upserts a managed comment by patching existing entry', async () => {
     const runner = new StubRunner([
       {
-        matches: matchIssueView('example', 'proj', 60, ['comments']),
+        matches: matchApi('repos/example/proj/issues/60/comments', 'GET'),
         result: {
           exitCode: 0,
-          stdout: JSON.stringify({
-            comments: {
-              nodes: [
-                { databaseId: 200, body: 'old<!-- sp-tag:foo -->', author: { login: 'bot' } },
-              ],
-            },
-          }),
+          stdout: JSON.stringify([
+            { id: 200, body: 'old<!-- sp-tag:foo -->', user: { login: 'bot' } },
+          ]),
         },
       },
       {
         matches: matchApi('repos/example/proj/issues/comments/200', 'PATCH'),
         result: {
           exitCode: 0,
-          stdout: JSON.stringify({ id: 200, body: 'updated', author: { login: 'bot' } }),
+          stdout: JSON.stringify({ id: 200, body: 'updated', user: { login: 'bot' } }),
         },
       },
     ]);
